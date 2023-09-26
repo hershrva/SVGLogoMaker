@@ -1,9 +1,10 @@
-const { Circle, Square, Triangle } = require('./lib/shapes.js');
-const inquirer = require('inquirer');
+import inquirer from 'inquirer';
+import { writeFile } from 'fs/promises';
+import { Circle, Square, Triangle } from './lib/shapes.js';
 
 
-async function generateLogo() {
-    const userInput = await inquirer.prompt([
+const promptUser = () => {
+    return inquirer.prompt([
         {
             type: 'input',
             name: 'text',
@@ -19,7 +20,7 @@ async function generateLogo() {
             type: 'list',
             name: 'shape',
             message: 'Choose a shape:',
-            choices: ['circle', 'triangle', 'square']
+            choices: ['circle', 'square', 'triangle']
         },
         {
             type: 'input',
@@ -27,28 +28,60 @@ async function generateLogo() {
             message: 'Enter shape color (keyword or hex):'
         }
     ]);
-
-    // Create an SVG document
-    const svg = svgwrite.createSvg({ width: 300, height: 200 });
-
-    // Add the chosen shape based on user input
-    switch (userInput.shape) {
-        case 'circle':
-            svg.circle(150, 100, 50, { fill: userInput.shapeColor });
-            break;
-        case 'triangle':
-            svg.polygon([[150, 50], [100, 150], [200, 150]], { fill: userInput.shapeColor });
-            break;
-        case 'square':
-            svg.rect(100, 50, 100, 100, { fill: userInput.shapeColor });
-            break;
-    }
-
-    // Add text based on user input
-    svg.text(150, 100, userInput.text, { fill: userInput.textColor });
-
-    // Save the SVG file
-    fs.writeFileSync('logo.svg', svg.toString());
-
-    console.log('Generated logo.svg');
 }
+
+class Svg {
+    constructor(){
+        this.textElement = '',
+        this.shapeElement = ''
+    }
+    render(){
+        return `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="300" height="200">${this.shapeElement}${this.textElement}</svg>`
+    }
+    setTextElement(text, textColor){
+        this.textElement =`<text x="150" y="125" font-size="60" text-anchor="middle" fill="${textColor}">${text}</text>`
+    }
+    setShapeElement(shape){
+        this.shapeElement = shape.render()
+    }
+}
+
+const generateLogo = async ({text, textColor, shape, shapeColor}) => {
+    let userShape;
+    // uses the user input to render the shape requested or throws back an error
+    if (shape === 'circle') {
+        userShape = new Circle();
+        console.log('User Shape:', userShape);
+    } else if (shape === 'square') {
+        userShape = new Square();
+        console.log('User Shape:', userShape);
+    } else if (shape === 'triangle') {
+        userShape = new Triangle();
+        console.log('User Shape:', userShape);
+    } else {
+        console.log('Invalid Shape');
+        return;
+    }
+    // uses user input to set color of the shape
+    userShape.setColor(shapeColor);
+    const svg = new Svg();
+    svg.setShapeElement(userShape);
+    svg.setTextElement(text, textColor);
+
+    const svgString = svg.render();
+
+    writeFile('./dist/logo.svg', svgString)
+        .then(() => console.log('Generated logo.svg'))
+        .catch((err) => console.error(err));
+
+}
+
+const init = () => {
+    promptUser()
+        .then(async (answers) => {
+            await generateLogo(answers);
+        })
+        .catch((err) => console.error(err));
+}
+
+init();
